@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="menu">
+        <item>Basic</item>
+        <item>Navi</item>
+        <item>satellite</item>
+        <item>Hybrid</item>
+    </string-array>
+</resources>
