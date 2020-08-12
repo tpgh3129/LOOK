@@ -319,17 +319,19 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             }
 
         });
+        Button btn1 = (Button)findViewById(R.id.clearButton);
 
-    Button btn1 = (Button)findViewById(R.id.clearButton);
+        btn1.setOnClickListener(new View.OnClickListener(){
+            @Override
+            public  void onClick(View v) {
+                polyline.setMap(null);
+                marker.setMap(null);
+                coords.clear();
 
-    btn1.setOnClickListener(new View.OnClickListener(){
-        @Override
-        public  void onClick(View v) {
-            polyline.setCoords(null);
-            polyline.setMap(null);
+            }
+        });
 
-        }
-    });
+
 
     }
     @Override
@@ -503,7 +505,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 }
             });
         } else if (vehicleState.isArmed()) {
-            // Take off
+            //
           show1();
         } else if (!vehicleState.isConnected()) {
             // Connect
@@ -576,6 +578,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             takeoffAltitude -= 0.5;
             altitudeButton.setText(Double.toString(takeoffAltitude) + "\n" + "이륙고도");
         }
+
     }
 
     // UI updating
@@ -665,10 +668,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         CameraUpdate cameraUpdate = CameraUpdate.scrollTo(currentLatlngLocation);
         mNaverMap.moveCamera(cameraUpdate);
         //업데이트할때마다 마커 지워주고 로히터 모드로 바뀜
-        if (CheckGoal(drone, currentLatlngLocation)) {
+        /*if (CheckGoal(drone, currentLatlngLocation)) {
             marker.setMap(null);
             VehicleApi.getApi(this.drone).setVehicleMode(VehicleMode.COPTER_LOITER);
-        }
+        }*/
     }
 
     protected LatLong getCurrentLocation(){
