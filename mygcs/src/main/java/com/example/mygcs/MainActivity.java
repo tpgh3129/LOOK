@@ -13,6 +13,8 @@ import android.support.v4.app.FragmentManager;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.Surface;
 import android.view.TextureView;
@@ -32,6 +34,7 @@ import com.naver.maps.map.LocationTrackingMode;
 import com.naver.maps.map.MapFragment;
 import com.naver.maps.map.NaverMap;
 import com.naver.maps.map.OnMapReadyCallback;
+import com.naver.maps.map.UiSettings;
 import com.naver.maps.map.overlay.LocationOverlay;
 import com.naver.maps.map.overlay.Marker;
 import com.naver.maps.map.overlay.OverlayImage;
@@ -72,6 +75,8 @@ import com.o3dr.services.android.lib.model.AbstractCommandListener;
 import com.o3dr.services.android.lib.model.SimpleCommandListener;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -114,6 +119,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     LocationOverlay locationOverlay;
 
+    ArrayList<String> recycler_list = new ArrayList<>(); // 리사이클러뷰
     ArrayList<LatLng> coords = new ArrayList<>();
     PolylineOverlay polyline = new PolylineOverlay();
     PolylineOverlay polyleadline = new PolylineOverlay();
@@ -310,6 +316,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                                 public void onTimeout() {
                                 }
                             });
+
+
                 }
                 else {
                     //다이어로그 이동
@@ -319,17 +327,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             }
 
         });
-        Button btn1 = (Button)findViewById(R.id.clearButton);
 
-        btn1.setOnClickListener(new View.OnClickListener(){
-            @Override
-            public  void onClick(View v) {
-                polyline.setMap(null);
-                marker.setMap(null);
-                coords.clear();
-
-            }
-        });
 
 
 
@@ -467,6 +465,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     }
 
+    public void changeMode(){
+        VehicleApi.getApi(this.drone).setVehicleMode(VehicleMode.COPTER_LOITER);
+    }
+
+
     public void onFlightModeSelected(View view) {
         VehicleMode vehicleMode = (VehicleMode) this.modeSelector.getSelectedItem();
 
@@ -526,6 +529,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 Button mapButton = (Button) findViewById(R.id.mapButton);
                 mapButton.setText("맵 잠금");
 
+                UiSettings uiSettings = mNaverMap.getUiSettings();
+                uiSettings.setScrollGesturesEnabled(false);
 
 
             }
@@ -535,6 +540,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             public void onClick(View view) {
                 Button mapButton = (Button) findViewById(R.id.mapButton);
                 mapButton.setText("맵 이동");
+
+                UiSettings uiSettings = mNaverMap.getUiSettings();
+                uiSettings.setScrollGesturesEnabled(true);
             }
         });
         if(lockButton.getVisibility() == View.INVISIBLE)
@@ -579,6 +587,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             altitudeButton.setText(Double.toString(takeoffAltitude) + "\n" + "이륙고도");
         }
 
+    }
+    //클리어
+    public void onClearTap(View view) {
+        polyline.setMap(null);
+        marker.setMap(null);
+        coords.clear();
     }
 
     // UI updating
@@ -647,6 +661,20 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         droneSatellite.setText(String.format("%d", droneGPS.getSatellitesCount()));
     }
 
+    protected  void cameraUpdate() {
+        LatLong currentLatlongLocation = getCurrentLocation();
+        LatLng currentLatlngLocation = new LatLng(currentLatlongLocation.getLatitude(),currentLatlongLocation.getLongitude());
+
+        Button mapButton = (Button)findViewById(R.id.mapButton);
+        if((mapButton.getText()).equals("맵 잠금"))
+        {
+            CameraUpdate cameraUpdate = CameraUpdate.scrollTo(currentLatlngLocation);
+            mNaverMap.moveCamera(cameraUpdate);
+        }
+
+
+    }
+
     protected void updateMap(){
         LatLong currentLatlongLocation = getCurrentLocation();
         LatLng currentLatlngLocation = new LatLng(currentLatlongLocation.getLatitude(),currentLatlongLocation.getLongitude());
@@ -665,13 +693,20 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         polyline.setCoords(coords);
         polyline.setMap(mNaverMap);
 
+
         CameraUpdate cameraUpdate = CameraUpdate.scrollTo(currentLatlngLocation);
         mNaverMap.moveCamera(cameraUpdate);
+
         //업데이트할때마다 마커 지워주고 로히터 모드로 바뀜
-        /*if (CheckGoal(drone, currentLatlngLocation)) {
+
+
+
+        Gps gps = this.drone.getAttribute(AttributeType.GPS);
+        if((marker.getMap()!=null) && (CheckGoal(this.drone, new LatLng(gps.getPosition().getLatitude(), gps.getPosition().getLongitude())))){
+            changeMode();
             marker.setMap(null);
-            VehicleApi.getApi(this.drone).setVehicleMode(VehicleMode.COPTER_LOITER);
-        }*/
+            alertUser("목적지 도착");
+        }
     }
 
     protected LatLong getCurrentLocation(){
@@ -716,8 +751,25 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     protected void alertUser(String message) {
         Toast.makeText(getApplicationContext(), message, Toast.LENGTH_SHORT).show();
+        recycler_list.add("★" + message);
+        refreshRecyclerView();
         Log.d(TAG, message);
     }
+
+    private void refreshRecyclerView() {
+        // 리사이클러뷰에 LinearLayoutManager 객체 지정.
+        RecyclerView recyclerView = findViewById(R.id.recyclerView);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+
+        // 리사이클러뷰에 SimpleAdapter 객체 지정.
+        SimpleTextAdapter adapter = new SimpleTextAdapter(recycler_list);
+        recyclerView.setAdapter(adapter);
+
+        recyclerView.scrollToPosition(recycler_list.size()-1);
+        //recyclerView.smoothScrollToPosition(recycler_list.size()-1);
+    }
+
+
 
     private void runOnMainThread(Runnable runnable) {
         mainHandler.post(runnable);
@@ -1047,6 +1099,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
                     public void onClick(DialogInterface dialog, int which) {
                         // Connected but not Armed
+
+                        Log.d("myLog", "이륙시점의 고도 : " + takeoffAltitude);
                         ControlApi.getApi(drone).takeoff(takeoffAltitude, new AbstractCommandListener() {
 
                             @Override
@@ -1110,7 +1164,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 });
         builder.show();
     }
-    //목표 도착하면 1
+    //거리가 1미터 이내로 들어갈때 트루를 반환
     public static boolean CheckGoal(final Drone drone, LatLng recentLatLng) {
         GuidedState guidedState = drone.getAttribute(AttributeType.GUIDED_STATE);
         LatLng target = new LatLng(guidedState.getCoordinate().getLatitude(),
